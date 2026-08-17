@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: PII Detection API
+  version: "1.0.0"
+  description: >
+    Detection-only API answering "what PII is present?". MUST NOT modify the input.
+    Raw detected values are omitted by default and may be returned only via an
+    authorization-gated, audited opt-in. Raw PII never appears in logs/traces/metrics/errors.
+servers:
+  - url: /v1
+paths:
+  /detect:
+    post:
+      operationId: detectPii
+      summary: Detect PII entities in a payload (no modification).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DetectionRequest"
+      responses:
+        "200":
+          description: Detection result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetectionResponse"
+        "400":
+          description: Empty or malformed input (safe validation error, no raw PII).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthenticated.
+        "403":
+          description: Unauthorized (e.g., returnValues requested without privileged scope, or cross-tenant).
+        "413":
+          description: Payload exceeds maximum size (256 KB default).
+        "503":
+          description: Detection unavailable/uncertain — safe error (fail-closed semantics).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    DetectionRequest:
+      type: object
+      required: [payload, format]
+      properties:
+        payload:
+          type: string
+          description: Plain text, or a JSON document serialized as a string when format=json.
+          maxLength: 262144
+        format:
+          type: string
+          enum: [text, json]
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Optional confidence floor; defaults to a minimal floor. Returns all detections at/above it.
+        entityTypes:
+          type: array
+          items: { type: string }
+          description: Optional filter of entity types of interest.
+        returnValues:
+          type: boolean
+          default: false
+          description: >
+            Gated opt-in to include raw detected values. Requires a privileged scope; each use is audited.
+    DetectionResponse:
+      type: object
+      required: [detections, requestId]
+      properties:
+        detections:
+          type: array
+          items: { $ref: "#/components/schemas/Detection" }
+        policyVersion:
+          type: integer
+          nullable: true
+        requestId:
+          type: string
+    Detection:
+      type: object
+      required: [type, confidence, start, end, occurrenceId]
+      properties:
+        type: { type: string, example: EMAIL }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        start: { type: integer, description: Span start (Unicode code points) for text. }
+        end: { type: integer, description: Span end (Unicode code points) for text. }
+        path: { type: string, nullable: true, description: JSON field path when format=json. }
+        occurrenceId: { type: string, description: Groups repeated identical values. }
+        value:
+          type: string
+          nullable: true
+          description: Present ONLY when returnValues=true and caller is authorized; otherwise omitted.
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: { type: string }
+        message: { type: string, description: Safe message; never contains raw PII. }
+        requestId: { type: string }

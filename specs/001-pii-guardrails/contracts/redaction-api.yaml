@@ -1,0 +1,129 @@
+openapi: 3.0.3
+info:
+  title: PII Redaction API
+  version: "1.0.0"
+  description: >
+    Given a payload and optional redaction options/policy, return a protected payload plus safe
+    metadata. With no options, applies the caller's resolved effective policy or the secure-default
+    policy (never a no-op). Unconfigured entity types remain protected per the non-weakenable floor.
+    No raw PII in the response metadata, logs, traces, metrics, or errors. Not guaranteed idempotent.
+servers:
+  - url: /v1
+paths:
+  /redact:
+    post:
+      operationId: redactPii
+      summary: Detect and protect PII per options/policy.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedactionRequest"
+      responses:
+        "200":
+          description: Redaction result (transformed or allowed).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedactionResponse"
+        "400":
+          description: Empty or malformed input (safe validation error, no raw PII).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthenticated.
+        "403":
+          description: Unauthorized (e.g., cross-tenant policy access).
+        "413":
+          description: Payload exceeds maximum size (256 KB default) — fail-closed, no content forwarded.
+        "422":
+          description: >
+            Request blocked (fail-closed) — e.g., detection uncertain/unavailable or partial
+            redaction failure. Safe body; no raw PII; no content forwarded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RedactionResponse" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RedactionRequest:
+      type: object
+      required: [payload, format]
+      properties:
+        payload:
+          type: string
+          maxLength: 262144
+        format:
+          type: string
+          enum: [text, json]
+        options:
+          $ref: "#/components/schemas/RedactionOptions"
+          description: Optional. When omitted, resolved effective policy or secure-default applies (never no-op).
+    RedactionOptions:
+      type: object
+      properties:
+        entities:
+          type: array
+          items: { type: string }
+          description: Entity types the caller wants protected (floor still applies to others).
+        strategyPerType:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [redact, mask]
+          description: Per-entity-type handling strategy.
+        maskConfig:
+          type: object
+          properties:
+            keepLast: { type: integer, minimum: 0 }
+            maskChar: { type: string, maxLength: 1 }
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+    RedactionResponse:
+      type: object
+      required: [outcome, actions, policyVersion, requestId]
+      properties:
+        transformedPayload:
+          type: string
+          nullable: true
+          description: The protected payload (null when outcome=blocked).
+        outcome:
+          type: string
+          enum: [transformed, allowed, blocked]
+        actions:
+          type: array
+          items: { $ref: "#/components/schemas/ActionSummary" }
+        policyVersion: { type: integer }
+        requestId: { type: string }
+    ActionSummary:
+      type: object
+      required: [type, action, count]
+      properties:
+        type: { type: string, example: CREDIT_CARD }
+        action: { type: string, enum: [redact, mask, block, allow] }
+        count: { type: integer }
+        spans:
+          type: array
+          items:
+            type: object
+            properties:
+              start: { type: integer }
+              end: { type: integer }
+              path: { type: string, nullable: true }
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: { type: string }
+        message: { type: string, description: Safe message; never contains raw PII. }
+        requestId: { type: string }
