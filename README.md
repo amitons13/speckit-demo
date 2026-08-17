@@ -13,7 +13,51 @@ The example feature is an **enterprise PII Guardrails capability**: a centralize
 
 ## What is Spec-Driven Development?
 
-Traditional coding jumps straight to implementation. **SDD inverts that**: you first make the *intent* executable — principles, a specification, a plan, and a task list — and only then generate code, so the code is a *consequence* of a reviewed, self-consistent spec.
+**The one-line idea:** decide *what* you want and *why* — and write it down clearly — **before** you let the AI write any code. The spec becomes the source of truth; the code is just the last step that follows from it.
+
+Think of it like building a house. **Vibe coding** is telling a builder "just start putting up walls and we'll figure it out." **Spec-Driven Development** is agreeing on the blueprint, the building codes, and the materials list first — so everyone (including the AI) builds the *same* house, and you catch the expensive mistakes on paper instead of in concrete.
+
+### Vibe coding vs. Spec-Driven Development
+
+| | 🎨 Vibe coding | 📐 Spec-Driven Development (SDD) |
+|---|----------------|--------------------------------|
+| **Where you start** | Straight into code from a prompt | With intent: principles → spec → plan → tasks |
+| **Source of truth** | The code (and your memory) | The written spec + constitution |
+| **Requirements** | Implied, in your head, easily forgotten | Explicit, testable, reviewed |
+| **Ambiguity** | Discovered late, mid-implementation | Surfaced early by `/speckit.clarify` |
+| **Guardrails** | "Hope the AI remembers" | Constitution is checked by `plan` & `analyze` |
+| **AI's role** | Autocomplete on vibes | Executes a reviewed, self-consistent design |
+| **Best for** | Quick throwaways, prototypes, exploration | Real features, teams, anything security/privacy-sensitive |
+| **Failure mode** | Silent contradictions & scope drift | Caught and reconciled *before* coding |
+
+Vibe coding is great for a quick sketch. But for something like **PII Guardrails** — where a single missed requirement can leak sensitive data — you want the requirements pinned down and cross-checked *before* a line of code exists. That is exactly what SDD gives you.
+
+### The SDD flow at a glance
+
+```mermaid
+flowchart TD
+    subgraph VIBE["🎨 Vibe coding"]
+      direction LR
+      P1["Prompt"] --> C1["Code"] --> H1["Hope it's right 🤞"]
+    end
+
+    subgraph SDD["📐 Spec-Driven Development"]
+      direction TB
+      A["① constitution<br/><i>non-negotiable principles</i>"] --> B["② specify<br/><i>what & why</i>"]
+      B --> C["③ clarify ⭐<br/><i>resolve ambiguities &<br/>reconcile conflicts</i>"]
+      C --> D["④ plan<br/><i>how: architecture & design</i>"]
+      D --> E["⑤ tasks<br/><i>ordered, actionable steps</i>"]
+      E --> F["⑥ implement<br/><i>code + tests</i>"]
+      F --> G["⑦ analyze<br/><i>cross-artifact consistency</i>"]
+      A -. "supreme authority<br/>(checked throughout)" .-> D
+      A -. .-> G
+      G -. "findings feed back" .-> B
+    end
+
+    VIBE -.->|"add rigor,<br/>remove guesswork"| SDD
+```
+
+**Why the order matters:** each step produces a durable artifact that the next step builds on. Because intent is written down first, the AI generates code as a *consequence* of a reviewed design — not a guess — and tools like `/speckit.analyze` can prove the spec, plan, tasks, and code all agree.
 
 Spec Kit provides a sequence of slash-commands (run here inside Cursor) that each produce a durable artifact:
 
