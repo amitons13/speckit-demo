@@ -17,18 +17,71 @@ Traditional coding jumps straight to implementation. **SDD inverts that**: you f
 
 Spec Kit provides a sequence of slash-commands (run here inside Cursor) that each produce a durable artifact:
 
-| # | Command | Question it answers | Primary output |
-|---|---------|--------------------|----------------|
-| 0 | `specify init` | "Set up the SDD workspace." | `.specify/`, `.cursor/` command + skill files |
-| 1 | `/speckit.constitution` | "What principles are non-negotiable?" | [`constitution.md`](./.specify/memory/constitution.md) |
-| 2 | `/speckit.specify` | "*What* must we build and *why*?" | [`spec.md`](./specs/001-pii-guardrails/spec.md) + quality checklist |
-| 3 | `/speckit.clarify` | "Where is the spec ambiguous or conflicting?" | Clarifications recorded back into `spec.md` |
-| 4 | `/speckit.plan` | "*How* will we build it?" | [`plan.md`](./specs/001-pii-guardrails/plan.md), [`research.md`](./specs/001-pii-guardrails/research.md), [`data-model.md`](./specs/001-pii-guardrails/data-model.md), [`contracts/`](./specs/001-pii-guardrails/contracts/), [`quickstart.md`](./specs/001-pii-guardrails/quickstart.md) |
-| 5 | `/speckit.tasks` | "What are the concrete steps?" | [`tasks.md`](./specs/001-pii-guardrails/tasks.md) |
-| 6 | `/speckit.implement` | "Build it." | `src/` + `tests/` (the MVP) |
-| 7 | `/speckit.analyze` | "Are all the artifacts consistent?" | Cross-artifact consistency report (console) |
+| # | Command | Question it answers | Command used (our PII Guardrails case) | Primary output |
+|---|---------|--------------------|----------------------------------------|----------------|
+| 0 | `specify init` | "Set up the SDD workspace." | `specify init . --ai cursor-agent --script sh` | `.specify/`, `.cursor/` command + skill files |
+| 1 | `/speckit.constitution` | "What principles are non-negotiable?" | `/speckit.constitution` → *"enterprise PII Guardrails platform: privacy by default, defense in depth, fail-safe, data minimization, auditability, configurability, performance, tenant isolation, leak-free observability, testability"* | [`constitution.md`](./.specify/memory/constitution.md) |
+| 2 | `/speckit.specify` | "*What* must we build and *why*?" | `/speckit.specify` → *"centralized PII guardrail detecting/protecting PII in prompts & responses; redact/mask/block/allow; policies by app/tenant/env/use-case; no PII in logs; 12 concrete scenarios; no implementation detail"* | [`spec.md`](./specs/001-pii-guardrails/spec.md) + quality checklist |
+| 3 | `/speckit.clarify` | "Where is the spec ambiguous or conflicting?" | `/speckit.clarify` ×2 → **(1)** *"critically review: uncertain detection, service down, PII leakage, tenant isolation, policy precedence, thresholds, streaming, large payloads…"* · **(2)** *"firm two-API architecture — Detection API + Redaction API; contracts, defaults, idempotency, versioning"* | Clarifications recorded back into `spec.md` |
+| 4 | `/speckit.plan` | "*How* will we build it?" | `/speckit.plan` → *"production plan: guardrail service, policy layer, layered detection, thresholds, redaction/masking/blocking, in/out interception, tenant-aware config, authN/Z, no telemetry leakage, fail-open vs fail-closed, reuse existing infra"* | [`plan.md`](./specs/001-pii-guardrails/plan.md), [`research.md`](./specs/001-pii-guardrails/research.md), [`data-model.md`](./specs/001-pii-guardrails/data-model.md), [`contracts/`](./specs/001-pii-guardrails/contracts/), [`quickstart.md`](./specs/001-pii-guardrails/quickstart.md) |
+| 5 | `/speckit.tasks` | "What are the concrete steps?" | `/speckit.tasks` → *"12-phase breakdown (foundation → detection → policy → redaction → in/out guardrails → security → observability → resilience → perf → testing → docs); MVP-first, mark [P]"* | [`tasks.md`](./specs/001-pii-guardrails/tasks.md) |
+| 6 | `/speckit.implement` | "Build it." | `/speckit.implement` → *"MVP strictly the two APIs; OpenAI detector behind a swappable interface; structured, validated model output; fail-closed; no PII/keys logged; unit + integration tests"* | `src/` + `tests/` (the MVP) |
+| 7 | `/speckit.analyze` | "Are all the artifacts consistent?" | `/speckit.analyze` → *"read-only cross-artifact consistency check (spec ↔ plan ↔ tasks vs constitution)"* | Cross-artifact consistency report (console) |
 
 The **star of the demo is `/speckit.clarify`** — it caught three answers that *contradicted the constitution* and forced an explicit reconciliation. That is the moment SDD proves it is more than boilerplate generation.
+
+### Commands used (copy-paste sequence)
+
+The exact command sequence that produced this repository, tuned to the PII Guardrails use case. Slash-commands are run inside Cursor; the prompt text after each is what steers the output (full prompts are shown per step in [Part A](#part-a--the-spec-kit-walkthrough)).
+
+```text
+# 0. Install & scaffold (shell)
+pip install specify-cli uv
+specify init . --ai cursor-agent --script sh
+specify check
+
+# 1. Principles — the non-negotiable constitution
+/speckit.constitution  Establish principles for an enterprise PII Guardrails platform:
+   privacy by default, defense in depth, fail-safe behavior, data minimization,
+   explainability & auditability, configurability, predictable performance,
+   security & tenant isolation, observability without leakage, testability.
+
+# 2. Specification — what & why (no implementation detail)
+/speckit.specify  Enterprise PII Guardrails for an AI platform: detect & protect PII
+   in prompts/responses; redact/mask/block/allow; policies by app/tenant/env/use-case;
+   never leak raw PII into logs/traces/metrics/audit; cover 12 concrete scenarios;
+   define journeys, functional/non-functional/security/privacy/failure/observability
+   requirements and measurable acceptance criteria.
+
+# 3. Clarify — resolve ambiguities, then lock the architecture (run twice)
+/speckit.clarify  Critically review: uncertain detection, detection service down,
+   PII leakage via logs/traces/metrics/errors, tenant isolation, policy precedence,
+   confidence thresholds, false positives, structured vs unstructured, streaming,
+   large payloads, latency, auditability without raw PII, redact vs mask vs block vs allow.
+/speckit.clarify  FIRM requirement: expose exactly two APIs — (1) PII Detection API
+   (detection-only) and (2) PII Redaction API (options-driven protection). Clarify
+   contracts, defaults when no options, unconfigured entity types, idempotency, versioning.
+
+# 4. Plan — production-oriented technical design
+/speckit.plan  Guardrail service + policy evaluation layer + layered detection;
+   configurable thresholds; redaction/masking/blocking; inbound & outbound interception;
+   tenant-aware config; authN/Z; no PII in telemetry; fail-open vs fail-closed per policy;
+   reuse existing platform infra; clear interfaces & separation of concerns.
+
+# 5. Tasks — phased, MVP-first breakdown
+/speckit.tasks  Organize into 12 phases (foundation, detection, policy, redaction,
+   input guardrails, output guardrails, security, observability, resilience, performance,
+   testing, docs/rollout); each task actionable with dependencies; mark [P]; prioritize an MVP.
+
+# 6. Implement — build the two-API MVP
+/speckit.implement  Build ONLY the two APIs. Detection API + Redaction API sharing one
+   reusable detector; OpenAI behind a swappable interface; structured, validated model
+   output; fail-closed on error/timeout; never log prompts/PII/keys; unit + integration tests.
+
+# 7. Analyze — read-only cross-artifact consistency check
+/speckit.analyze  Check spec ↔ plan ↔ tasks against the constitution; report duplications,
+   ambiguities, coverage gaps, and constitution conflicts (no file changes).
+```
 
 ---
 
