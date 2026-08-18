@@ -50,7 +50,7 @@ flowchart TD
       E --> F["⑥ implement<br/><i>code + tests</i>"]
       F --> G["⑦ analyze<br/><i>cross-artifact consistency</i>"]
       A -. "supreme authority<br/>(checked throughout)" .-> D
-      A -. .-> G
+      A -.-> G
       G -. "findings feed back" .-> B
     end
 
